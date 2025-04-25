@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils.text import slugify
-from django.utils.timezone import timezone
+from django.utils import timezone
 # Create your models here.
 
 class CustomUser(AbstractUser):
@@ -12,12 +12,12 @@ class CustomUser(AbstractUser):
     )
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, unique=True)
-    profile_img = models.ImageField(default="")
+    profile_img = models.ImageField(default="images/user-icon.webp", upload_to='images/', null=True)
     role= models.CharField(max_length=20, choices=Role_Choices)
     slug = models.SlugField(unique=True, blank=True, editable=False)
 
     USERNAME_FIELD ='email'
-    REQUIRED_FIELDS=['username']
+    REQUIRED_FIELDS=['username','first_name','last_name']
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -25,7 +25,7 @@ class CustomUser(AbstractUser):
         super().save(*args,**kwargs)
 
     def generate_slug(self):
-        base_slug = slugify(f'{self.first_name.lower()}-{self.last_name.lower()}')
+        base_slug = slugify(f'{self.first_name}-{self.last_name}')
         unique_slug = base_slug
         number = 1
 
@@ -58,7 +58,7 @@ class Student(models.Model):
 class Driver(models.Model):
     Vehicle_Choices= (
         ('bus','Bus'),
-        ('tricyle','Tricylce'),
+        ('tricyle','Tricycle'),
         ('bike','Bike')
     )
     STATUS_CHOICES = [
@@ -70,7 +70,7 @@ class Driver(models.Model):
     licence_no = models.CharField(max_length=50, unique=True)
     vehicle_num = models.CharField(max_length=50)
     vehicle_type = models.CharField(choices=Vehicle_Choices, max_length=20)
-    vehicle_des = models.TextField(max_length=200)
+    vehicle_description = models.TextField(max_length=200)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
 
     def __str__(self):
@@ -78,7 +78,7 @@ class Driver(models.Model):
 
 class Location(models.Model):
     name = models.TextField(max_length=1000)
-    place_img = models.ImageField(default='images/user-icon.webp', upload_to='images/', null=True, blank=True)
+    place_img = models.ImageField(default='images/default-map.webp', upload_to='images/', null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     
@@ -92,20 +92,20 @@ class Ride(models.Model):
        ('completed', 'Completed'),
        ('declined', 'Declined')
     ]
-    OPTIONS = (
-        ('exclusive','Exclusive'),
-        ('shared','Shared')
-    )
+    OPTIONS = [
+        ('premium','Premium'),
+        ('standard','Standard')
+    ]
     rider = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name="riders")
-    origin_place = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="origin_place")
-    des_place= models.ForeignKey(Location, related_name='des_place', on_delete=models.CASCADE)
-    vehicle_type = models.CharField(max_length=20) # will be automatically assigned from the Driver.vehicle_type.
+    origin_place = models.ForeignKey(Location, related_name='ride_origin_places', on_delete=models.CASCADE)
+    destination = models.ForeignKey(Location, related_name='ride_destination_places', on_delete=models.CASCADE)
+    vehicle_type = models.CharField(max_length=20, editable=False) # will be automatically assigned from the Driver.vehicle_type.
     status = models.CharField(choices=STATUS, max_length=15)
     option = models.CharField(choices=OPTIONS, max_length=15)
-    availabe_seat = models.IntegerField(default=1)
+    available_seat = models.IntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     start_time = models.DateTimeField(null=True,blank=True)
-    end_time = models.DateField(blank = True, null=True)
+    end_time = models.DateTimeField(blank = True, null=True)
 
     def save(self, *args, **kwargs):
         if self.rider:
@@ -117,11 +117,11 @@ class Ride(models.Model):
 
 class Booking(models.Model):
     STATUS = [('booked','Booked'),('cancelled','Cancelled')]
-    OPTIONS = [('exclusive','Exclusive'),('shared','Shared')]
-    ride = models.ForeignKey(Ride, related_name="rides", on_delete=models.CASCADE)
-    passenger = models.ForeignKey(CustomUser, related_name="customusers", on_delete=models.CASCADE)
-    origin_place = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="origin_place")
-    des_place= models.ForeignKey(Location, related_name='des_place', on_delete=models.CASCADE)
+    OPTIONS = [('premium','Premium'),('standard','Standard')]
+    ride = models.ForeignKey(Ride, related_name='booking_rides', on_delete=models.CASCADE)
+    passenger = models.ForeignKey(CustomUser, related_name="bookings", on_delete=models.CASCADE)
+    pickup_place = models.ForeignKey(Location, related_name='booking_pickup_places', on_delete=models.CASCADE)
+    destionation_place = models.ForeignKey(Location, related_name='booking_destination_places', on_delete=models.CASCADE)
     status = models.CharField(choices=STATUS, max_length=15)
     ride_type = models.CharField(choices=OPTIONS, max_length=15)
     vehicle_choice = models.CharField(max_length=20)
@@ -147,7 +147,7 @@ class Payment(models.Model):
        ('successful', 'Successful'),
        ('failed', 'Failed')
     ]
-    ride = models.ForeignKey(Ride, related_name='rides', on_delete=models.CASCADE)
+    ride = models.ForeignKey(Ride, related_name='ride_payments', on_delete=models.CASCADE)
     customer = models.ForeignKey(CustomUser, related_name='payments', on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10,decimal_places=2)
     status = models.CharField(choices=STATUS_CHOICES,max_length=20)
@@ -164,6 +164,8 @@ class Payment(models.Model):
     def __str__(self):
         return f'Payment {self.id} - {self.status}'
 
-
+class Wallet(models.Model):
+    user = models.OneToOneField(CustomUser, related_name='wallet', on_delete=models.CASCADE)
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
 
