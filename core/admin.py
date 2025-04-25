@@ -35,4 +35,4 @@ class DriverAdmin(admin.ModelAdmin):
         if obj.user:
             return f'{obj.user.email}'
         return "N/A"
-    email_address.short_description = 'Email_Address'
+    email_address.short_description = 'Email Address'
