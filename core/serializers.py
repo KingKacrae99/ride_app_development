@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Ride, CustomUser, Staff, Student, Driver, Location,Payment,Wallet
+from .models import Ride, CustomUser, Staff, Student, Driver, Location,Payment,Wallet,Booking
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -149,3 +149,9 @@ class WalletSerializer(serializers.ModelSerializer):
                 'allow_blank':False
             }
         }
+
+class BookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = '__all__'
+        read_only_fields = ['id','booked_date']
